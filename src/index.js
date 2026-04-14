@@ -74,9 +74,13 @@ app.command('/remind-now', async function(opts) {
 });
 
 // ─── ヘルスチェック（Herokuスリープ防止） ─────────────────────
-app.receiver.router.get('/health', function(req, res) {
-  res.json({ status: 'ok', time: new Date().toISOString() });
-});
+const http = require('http');
+http.createServer((req, res) => {
+  if (req.url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', time: new Date().toISOString() }));
+  }
+}).listen(process.env.HEALTH_PORT || 3001);
 
 // ─── 起動 ─────────────────────────────────────────────────
 (async function() {
