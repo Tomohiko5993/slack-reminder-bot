@@ -3,18 +3,18 @@ const { getScanRange } = require('./holidays');
 /**
  * 自分が参加している全チャンネルIDを取得
  */
-async function getMyChannels(client) {
+async function getMyChannels(client, myUserId) {
   let channels = [];
   let cursor;
   do {
-    const res = await client.conversations.list({
+    const res = await client.user.conversations({
+      user: myUserId,
       types: 'public_channel,private_channel',
       exclude_archived: true,
       limit: 200,
       cursor,
     });
-    const joined = (res.channels || []).filter(ch => ch.is_member);
-    channels = channels.concat(joined);
+    channels = channels.concat(res.channels || []);
     cursor = res.response_metadata && res.response_metadata.next_cursor;
   } while (cursor);
   return channels;
@@ -81,7 +81,7 @@ async function scanMentions(client, myUserId, session, now) {
     + ' oldest=' + new Date(oldest * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
     + ' latest=' + new Date(latest * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }));
 
-  const channels = await getMyChannels(client);
+  const channels = await getMyChannels(client, myUserId);
   console.log('[scan] joined channels=' + channels.length);
 
   const unreplied = [];
@@ -121,3 +121,4 @@ async function scanMentions(client, myUserId, session, now) {
 }
 
 module.exports = { scanMentions };
+
