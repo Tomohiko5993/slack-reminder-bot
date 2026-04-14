@@ -9,7 +9,7 @@ async function getMyChannels(client, myUserId) {
   do {
     const res = await client.users.conversations({
       user: myUserId,
-      types: 'public_channel,private_channel',
+      types: 'public_channel,private_channel,im,mpim',
       exclude_archived: true,
       limit: 200,
       cursor,
@@ -101,7 +101,9 @@ async function scanMentions(client, myUserId, session, now) {
       // 自分の投稿はスキップ
       if (msg.user === myUserId) continue;
 
-      if (!mentionsMe(msg.text, myUserId)) continue;
+      // DMの場合はメンション判定をスキップ（自分宛のメッセージ全て対象）
+      const isDM = channel.is_im || channel.is_mpim;
+      if (!isDM && !mentionsMe(msg.text, myUserId)) continue;
 
       const replied = await hasMyReply(client, channel.id, msg.ts, myUserId);
       if (replied) continue;
