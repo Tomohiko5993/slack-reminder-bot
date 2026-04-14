@@ -1,4 +1,12 @@
 require('dotenv').config();
+
+// デバッグ用（確認後削除）
+console.log('ENV CHECK:', {
+  MY_SLACK_USER_ID: process.env.MY_SLACK_USER_ID,
+  SLACK_BOT_TOKEN: process.env.SLACK_BOT_TOKEN ? 'SET' : 'NOT SET',
+});
+
+
 const { App } = require('@slack/bolt');
 const cron = require('node-cron');
 const { isWorkday } = require('./holidays');
