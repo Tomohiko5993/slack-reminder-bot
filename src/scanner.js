@@ -7,7 +7,7 @@ async function getMyChannels(client, myUserId) {
   let channels = [];
   let cursor;
   do {
-    const res = await client.user.conversations({
+    const res = await client.users.conversations({
       user: myUserId,
       types: 'public_channel,private_channel',
       exclude_archived: true,
