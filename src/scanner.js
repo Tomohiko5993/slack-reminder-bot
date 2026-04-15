@@ -6,7 +6,7 @@ const { getScanRange } = require('./holidays');
  */
 async function searchMentions(userToken, myUserId, oldest, latest) {
   const userClient = new WebClient(userToken);
-  const query = `<@${myUserId}> OR @channel OR @here`;
+  const query = `<@${myUserId}>`;
   const oldestDate = new Date(oldest * 1000).toISOString().split('T')[0];
   const latestDate = new Date(latest * 1000).toISOString().split('T')[0];
 

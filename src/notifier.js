@@ -1,3 +1,7 @@
+// 1画面に表示するメンションの上限件数
+const MAX_DISPLAY = 20;
+
+
 /**
  * 未返信メンション一覧をDM1通にまとめて送信
  */
@@ -15,6 +19,10 @@ async function sendSummaryDm(client, myUserId, unreplied, session) {
     return;
   }
 
+  // ─── 表示件数をMAX_DISPLAYに制限 ────────────────────────
+  const displayed = unreplied.slice(0, MAX_DISPLAY);
+  const remaining = unreplied.length - displayed.length;
+
   // ─── ブロック構築 ────────────────────────────────────────
   const blocks = [
     {
@@ -28,7 +36,7 @@ async function sendSummaryDm(client, myUserId, unreplied, session) {
     { type: 'divider' },
   ];
 
-  unreplied.forEach(function(item, i) {
+  displayed.forEach(function(item, i) {
     const link = 'https://slack.com/archives/' + item.channelId
       + '/p' + item.ts.replace('.', '');
 
@@ -52,6 +60,17 @@ async function sendSummaryDm(client, myUserId, unreplied, session) {
     });
   });
 
+  // 表示しきれなかった件数を表示
+  if (remaining > 0) {
+    blocks.push({
+      type: 'context',
+      elements: [{
+        type: 'mrkdwn',
+        text: '_他 ' + remaining + ' 件は省略されています_',
+      }],
+    });
+  }
+
   blocks.push({ type: 'divider' });
   blocks.push({
     type: 'context',
@@ -68,7 +87,8 @@ async function sendSummaryDm(client, myUserId, unreplied, session) {
     blocks: blocks,
   });
 
-  console.log('[notifier] DM sent: ' + unreplied.length + ' items');
+  console.log('[notifier] DM sent: ' + unreplied.length + ' items (displayed: ' + displayed.length + ')');
 }
+
 
 module.exports = { sendSummaryDm };
