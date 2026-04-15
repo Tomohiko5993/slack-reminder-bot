@@ -7,14 +7,13 @@ const { getScanRange } = require('./holidays');
 async function searchMentions(userToken, myUserId, oldest, latest) {
   const userClient = new WebClient(userToken);
 
-  // まず自分のユーザー名を取得
-  const userInfo = await userClient.users.info({ user: myUserId });
-  const username = userInfo.user.name;
-
+  // search.messages で "Tomohiko Ozaki" の表示名でメンション検索
   const oldestDate = new Date(oldest * 1000).toISOString().split('T')[0];
   const latestDate = new Date(latest * 1000).toISOString().split('T')[0];
 
-  console.log('[scan] searching with username=' + username);
+  // ユーザーIDを直接クエリに入れる（Enterprise Gridでも動く）
+  const query = `<@${myUserId}> after:${oldestDate} before:${latestDate}`;
+  console.log('[scan] query=' + query);
 
   let messages = [];
   let page = 1;
@@ -22,7 +21,7 @@ async function searchMentions(userToken, myUserId, oldest, latest) {
 
   do {
     const res = await userClient.search.messages({
-      query: `@${username} after:${oldestDate} before:${latestDate}`,
+      query,
       count: 100,
       page,
     });
@@ -32,7 +31,6 @@ async function searchMentions(userToken, myUserId, oldest, latest) {
     page++;
   } while (page <= totalPages);
 
-  // after:/before: は日付単位なので、Unix秒で時間まで絞り込む
   return messages.filter(m => {
     const ts = parseFloat(m.ts);
     return ts >= oldest && ts <= latest;
