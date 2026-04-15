@@ -2,7 +2,7 @@ const { WebClient } = require('@slack/web-api');
 const { getScanRange } = require('./holidays');
 
 /**
- * search.messages API で自分へのメンションを検索する
+ * search.messages API で自分への直接メンションを検索する
  */
 async function searchMentions(userToken, myUserId, oldest, latest) {
   const userClient = new WebClient(userToken);
@@ -26,7 +26,11 @@ async function searchMentions(userToken, myUserId, oldest, latest) {
     page++;
   } while (page <= totalPages);
 
-  return messages;
+  // after:/before: は日付単位なので、Unix秒で時間まで絞り込む
+  return messages.filter(m => {
+    const ts = parseFloat(m.ts);
+    return ts >= oldest && ts <= latest;
+  });
 }
 
 /**
@@ -53,7 +57,11 @@ async function searchDMs(userToken, oldest, latest) {
     page++;
   } while (page <= totalPages);
 
-  return messages;
+  // 時間まで絞り込む
+  return messages.filter(m => {
+    const ts = parseFloat(m.ts);
+    return ts >= oldest && ts <= latest;
+  });
 }
 
 /**
@@ -62,16 +70,13 @@ async function searchDMs(userToken, oldest, latest) {
  * レートリミットを回避する
  */
 function hasMyReplyInSearchResult(msg, myUserId) {
-  // reply_users にいれば返信済み
   if (msg.reply_users && msg.reply_users.includes(myUserId)) return true;
-  // reply_count があってもreply_usersにいなければ未返信
   return false;
 }
 
 /**
  * メインスキャン処理
- * search.messages APIで取得したメッセージのみを対象にし
- * conversations.replies を一切呼ばないことでレートリミットを回避する
+ * search.messages APIで自分へのメンション＋DMを効率的に検出する
  * @param {object} client Slack WebClient（Bot用・通知送信に使用）
  * @param {string} myUserId 自分のSlackユーザーID
  * @param {'morning'|'evening'} session
@@ -85,7 +90,7 @@ async function scanMentions(client, myUserId, session, now) {
     + ' oldest=' + new Date(oldest * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
     + ' latest=' + new Date(latest * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }));
 
-  // メンション検索 + DM検索
+  // メンション検索 + DM検索（並列）
   const [mentionMessages, dmMessages] = await Promise.all([
     searchMentions(userToken, myUserId, oldest, latest),
     searchDMs(userToken, oldest, latest),
