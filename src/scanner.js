@@ -7,11 +7,11 @@ const { getScanRange } = require('./holidays');
 async function searchMentions(userToken, myUserId, oldest, latest) {
   const userClient = new WebClient(userToken);
 
-  // search.messages で "Tomohiko Ozaki" の表示名でメンション検索
   const oldestDate = new Date(oldest * 1000).toISOString().split('T')[0];
-  const latestDate = new Date(latest * 1000).toISOString().split('T')[0];
+  const latestDateObj = new Date(latest * 1000);
+  latestDateObj.setDate(latestDateObj.getDate() + 1);
+  const latestDate = latestDateObj.toISOString().split('T')[0];
 
-  // ユーザーIDを直接クエリに入れる（Enterprise Gridでも動く）
   const query = `<@${myUserId}> after:${oldestDate} before:${latestDate}`;
   console.log('[scan] query=' + query);
 
@@ -42,8 +42,11 @@ async function searchMentions(userToken, myUserId, oldest, latest) {
  */
 async function searchDMs(userToken, oldest, latest) {
   const userClient = new WebClient(userToken);
+
   const oldestDate = new Date(oldest * 1000).toISOString().split('T')[0];
-  const latestDate = new Date(latest * 1000).toISOString().split('T')[0];
+  const latestDateObj = new Date(latest * 1000);
+  latestDateObj.setDate(latestDateObj.getDate() + 1);
+  const latestDate = latestDateObj.toISOString().split('T')[0];
 
   let messages = [];
   let page = 1;
@@ -61,7 +64,6 @@ async function searchDMs(userToken, oldest, latest) {
     page++;
   } while (page <= totalPages);
 
-  // 時間まで絞り込む
   return messages.filter(m => {
     const ts = parseFloat(m.ts);
     return ts >= oldest && ts <= latest;
@@ -70,8 +72,6 @@ async function searchDMs(userToken, oldest, latest) {
 
 /**
  * search.messages の結果から自分が返信済みかを判定する
- * conversations.replies を叩かずに reply_users フィールドで判定することで
- * レートリミットを回避する
  */
 function hasMyReplyInSearchResult(msg, myUserId) {
   if (msg.reply_users && msg.reply_users.includes(myUserId)) return true;
@@ -80,12 +80,6 @@ function hasMyReplyInSearchResult(msg, myUserId) {
 
 /**
  * メインスキャン処理
- * search.messages APIで自分へのメンション＋DMを効率的に検出する
- * @param {object} client Slack WebClient（Bot用・通知送信に使用）
- * @param {string} myUserId 自分のSlackユーザーID
- * @param {'morning'|'evening'} session
- * @param {Date} now 現在時刻
- * @returns {Array} 未返信メンションの配列
  */
 async function scanMentions(client, myUserId, session, now) {
   const userToken = process.env.SLACK_USER_TOKEN;
@@ -100,7 +94,6 @@ async function scanMentions(client, myUserId, session, now) {
   ]);
   console.log('[scan] mention hits=' + mentionMessages.length + ' DM hits=' + dmMessages.length);
 
-  // 重複排除してマージ
   const seen = new Set();
   const allMessages = [];
   for (const msg of [...mentionMessages, ...dmMessages]) {
