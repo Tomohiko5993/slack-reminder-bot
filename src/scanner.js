@@ -6,9 +6,15 @@ const { getScanRange } = require('./holidays');
  */
 async function searchMentions(userToken, myUserId, oldest, latest) {
   const userClient = new WebClient(userToken);
-  const query = `<@${myUserId}>`;
+
+  // まず自分のユーザー名を取得
+  const userInfo = await userClient.users.info({ user: myUserId });
+  const username = userInfo.user.name;
+
   const oldestDate = new Date(oldest * 1000).toISOString().split('T')[0];
   const latestDate = new Date(latest * 1000).toISOString().split('T')[0];
+
+  console.log('[scan] searching with username=' + username);
 
   let messages = [];
   let page = 1;
@@ -16,7 +22,7 @@ async function searchMentions(userToken, myUserId, oldest, latest) {
 
   do {
     const res = await userClient.search.messages({
-      query: `${query} after:${oldestDate} before:${latestDate}`,
+      query: `@${username} after:${oldestDate} before:${latestDate}`,
       count: 100,
       page,
     });
@@ -90,7 +96,6 @@ async function scanMentions(client, myUserId, session, now) {
     + ' oldest=' + new Date(oldest * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
     + ' latest=' + new Date(latest * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }));
 
-  // メンション検索 + DM検索（並列）
   const [mentionMessages, dmMessages] = await Promise.all([
     searchMentions(userToken, myUserId, oldest, latest),
     searchDMs(userToken, oldest, latest),
@@ -111,13 +116,11 @@ async function scanMentions(client, myUserId, session, now) {
   const unreplied = [];
 
   for (const msg of allMessages) {
-    // 自分の投稿はスキップ
     if (msg.user === myUserId) continue;
 
     const channelId = msg.channel && msg.channel.id;
     if (!channelId) continue;
 
-    // reply_users フィールドで返信済み判定（API追加呼び出しなし）
     if (hasMyReplyInSearchResult(msg, myUserId)) continue;
 
     unreplied.push({
